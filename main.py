@@ -6,7 +6,6 @@ from tqdm import tqdm
 from threading import Thread
 from sys import argv
 
-
 WOMEN_COUNT = int(argv[2])
 MEN_COUNT = int(argv[3])
 MONTHS = int(argv[1])
@@ -42,6 +41,8 @@ class Couple:
             COUPLES.remove(self)
             self.pM.couple = None
             self.pH.couple = None
+            self.pM.__single_time__()
+            self.pH.__single_time__()
             self.last_check = (self.last_check + 1) % 2
             return True
         self.last_check = (self.last_check + 1) % 2
@@ -66,6 +67,7 @@ class Couple:
                 numb = 4
             self.pM.is_pregnant = 9
             self.pM.children = numb
+            self.pM.father = self.pH
 
 
 class Person:
@@ -82,14 +84,14 @@ class Person:
     def death(self):
         global WOMEN_COUNT, MEN_COUNT, NEW_PERSONS
         p = 1
-        if self.age < 12:
+        if self.age / 12 < 12:
             p = 0.25 / (12 * 12)
-        elif self.age < 45:
+        elif self.age / 12 < 45:
             p = 0.15 / (33 * 12) if self.is_woman else 0.1 / (33 * 12)
-        elif self.age < 76:
+        elif self.age / 12 < 76:
             p = 0.35 / (31 * 12) if self.is_woman else 0.3 / (31 * 12)
-        elif self.age < 125:
-            p = 0.65 / (24 * 12) if self.is_woman else 0.7 / (24 * 12)
+        elif self.age / 12 < 125:
+            p = 0.65 / (49 * 12) if self.is_woman else 0.7 / (49 * 12)
         if random.uniform(0, 1) < p:
             if self.is_woman:
                 WOMEN_COUNT -= 1
@@ -105,6 +107,9 @@ class Person:
         return False
 
     def want_couple(self):
+        if self.single != 0:
+            self.single -= 1
+            return False
         p = 0
         if 12 <= self.age < 15:
             p = 0.6
@@ -177,6 +182,7 @@ class Person:
         return random.uniform(0, 1) < p
 
     def check_child(self):
+        global WOMEN_COUNT, MEN_COUNT
         if self.is_pregnant != 0:
             self.is_pregnant -= 1
             if self.is_pregnant == 0:
@@ -184,6 +190,13 @@ class Person:
                     name, women = ("Women", True) if random.uniform(0, 1) < 0.5 else ("Men", False)
                     child = Person(name, 0, women)
                     NEW_PERSONS.append(child)
+                    if child.is_woman:
+                        WOMEN_COUNT += 1
+                    else:
+                        MEN_COUNT += 1
+                self.son_count += self.children
+                self.father.son_count += self.children
+                self.father = None
                 self.children = 0
             else:
                 env.ob_pregnant[env.now] += 1
@@ -208,15 +221,15 @@ class Person:
 
     def __single_time__(self):
         if 12 <= self.age < 15:
-            return random.expovariate(3)
+            self.single = int(random.expovariate(3))
         elif 15 <= self.age < 35:
-            return random.expovariate(6)
+            self.single = int(random.expovariate(6))
         elif 35 <= self.age < 45:
-            return random.expovariate(12)
+            self.single = int(random.expovariate(12))
         elif 45 <= self.age < 60:
-            return random.expovariate(24)
+            self.single = int(random.expovariate(24))
         elif 60 <= self.age < 125:
-            return random.expovariate(48)
+            self.single = int(random.expovariate(48))
 
     def __str__(self):
         return f'Mujer {id(self)}' if self.is_woman else f'Hombre {id(self)}'
@@ -245,7 +258,7 @@ def initialize_population():
         if not p.death():
             if p.couple is None:
                 p.want_couple()
-            elif p.couple is not None:
+            else:
                 p.check_couple()
         i += 1
 
@@ -254,6 +267,8 @@ def month(env, months):
     global PERSONS, NEW_PERSONS
 
     env.ob_persons = [None] * MONTHS
+    env.ob_women = [None] * MONTHS
+    env.ob_men = [None] * MONTHS
     env.ob_couples = [None] * MONTHS
     env.ob_pregnant = [None] * MONTHS
     env.ob_timeline = [""] * MONTHS
@@ -263,8 +278,10 @@ def month(env, months):
         m = int(env.now % 12) + 1
         env.ob_timeline[env.now] = f'{m}/{y}'
         env.ob_pregnant[env.now] = 0
-        initialize_population()
         env.ob_persons[env.now] = len(PERSONS)
+        env.ob_women[env.now] = WOMEN_COUNT
+        env.ob_men[env.now] = MEN_COUNT
+        initialize_population()
         if len(PERSONS) == 0:
             break
         env.ob_couples[env.now] = len(COUPLES)
@@ -280,18 +297,24 @@ job = Thread(target=env.run)
 job.start()
 
 fig = plt.figure()
-ax_persons = fig.add_subplot(2, 2, 1)
-ax_couples = fig.add_subplot(2, 2, 2)
+ax_persons = fig.add_subplot(2, 1, 1)
+ax_couples = fig.add_subplot(2, 1, 2)
 
 
 def animate(i):
     # line.set_ydata(env.ob_persons)
     ax_persons.clear()
-    ax_persons.plot(env.ob_timeline[max(0, env.now - 12):env.now], env.ob_persons[max(0, env.now - 12):env.now])
+    ax_persons.plot(env.ob_persons, label="Persons")
+    ax_persons.plot(env.ob_women, label="Women")
+    ax_persons.plot(env.ob_men, label="Men")
+    ax_persons.grid()
+    ax_persons.legend()
     ax_persons.title.set_text("Population")
     ax_couples.clear()
-    ax_couples.plot(env.ob_timeline[max(0, env.now - 12):env.now], env.ob_couples[max(0, env.now - 12):env.now])
-    ax_couples.plot(env.ob_pregnant[max(0, env.now - 12):env.now])
+    ax_couples.plot(env.ob_couples, label="Couples")
+    ax_couples.plot(env.ob_pregnant, label="Pregnant")
+    ax_couples.grid()
+    ax_couples.legend()
     ax_couples.title.set_text("Couples")
     if len(PERSONS) == 0:
         plt.close()
@@ -305,12 +328,17 @@ print(f'{int(env.now % 12) + 1}/{int(env.now / 12) + 1 + 2020}')
 if len(PERSONS) == 0:
     print('Your population died :(')
 
-plt.plot(env.ob_timeline, env.ob_persons)
+plt.plot([i + 1 for i in range(len(env.ob_persons))], env.ob_persons, label='Persons')
+plt.plot([i + 1 for i in range(len(env.ob_women))], env.ob_women, label='Women')
+plt.plot([i + 1 for i in range(len(env.ob_men))], env.ob_men, label='Men')
+plt.grid()
+plt.legend()
 plt.xlabel("Month")
-plt.ylabel("Population")
 plt.show()
 
-plt.plot(env.ob_timeline, env.ob_couples)
+plt.plot([i + 1 for i in range(len(env.ob_couples))], env.ob_couples, label='Couples')
+plt.plot([i + 1 for i in range(len(env.ob_pregnant))], env.ob_pregnant, label='Pregnant')
+plt.grid()
+plt.legend()
 plt.xlabel("Month")
-plt.ylabel("Couples")
 plt.show()
