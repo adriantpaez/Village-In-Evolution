@@ -23,7 +23,7 @@ una persona distribuye uniforme y se corresponde, según su edad y sexo, con la 
 
 Del mismo modo, se conoce que la probabilidad de una mujer se embarace es uniforme y está relacionada con la edad:
 
-| Edad      | Probabilidad Embarazarce  |
+| Edad      | Probabilidad Embarazarse  |
 | ---       | ---                       |
 | 12-15     | 0.2                       |
 | 15-21     | 0.45                      |
