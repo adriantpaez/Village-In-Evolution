@@ -11,6 +11,7 @@ MEN_COUNT = int(argv[3])
 MONTHS = int(argv[1])
 PERSONS = []
 NEW_PERSONS = []
+NEW_COUPLES = []
 SINGLE_MEN_WONT = []
 SINGLE_WOMEN_WONT = []
 COUPLES = []
@@ -23,6 +24,7 @@ class Couple:
         self.pM = pM
         self.pH = pH
         self.last_check = 0
+        self.age = 0
 
     def get_women(self):
         return self.pM
@@ -44,9 +46,11 @@ class Couple:
             self.pM.__single_time__()
             self.pH.__single_time__()
             self.last_check = (self.last_check + 1) % 2
-            return True
+            return True, self.age
+        NEW_COUPLES.append(self)
         self.last_check = (self.last_check + 1) % 2
-        return False
+        self.age += 1
+        return False, self.age
 
     def death_broke(self):
         COUPLES.remove(self)
@@ -56,15 +60,13 @@ class Couple:
     def child(self):
         if self.pM.is_pregnant == 0 and self.pM.want_child() and self.pH.want_child() and self.pM.get_pregnant():
             p = random.uniform(0, 1)
-            numb = 5
-            if p < 0.7:
+            numb = 4
+            if p < 0.9889:
                 numb = 1
-            elif p < 0.88:
+            elif p < 0.9989:
                 numb = 2
-            elif p < 0.96:
+            elif p < 0.9999:
                 numb = 3
-            elif p < 0.99:
-                numb = 4
             self.pM.is_pregnant = 9
             self.pM.children = numb
             self.pM.father = self.pH
@@ -74,6 +76,7 @@ class Person:
     def __init__(self, name, age, is_woman):
         self.name = name
         self.age = age
+        self.ageYear = age / 12
         self.single = 0
         self.couple = None
         self.is_woman = is_woman
@@ -83,15 +86,28 @@ class Person:
 
     def death(self):
         global WOMEN_COUNT, MEN_COUNT, NEW_PERSONS
-        p = 1
-        if self.age / 12 < 12:
-            p = 0.25 / (12 * 12)
-        elif self.age / 12 < 45:
-            p = 0.15 / (33 * 12) if self.is_woman else 0.1 / (33 * 12)
-        elif self.age / 12 < 76:
-            p = 0.35 / (31 * 12) if self.is_woman else 0.3 / (31 * 12)
-        elif self.age / 12 < 125:
-            p = 0.65 / (49 * 12) if self.is_woman else 0.7 / (49 * 12)
+        if self.ageYear < 1:
+            p = 1 / 2724 if self.is_woman else 1 / 2124
+        elif self.ageYear < 4:
+            p = 1 / 64512 if self.is_woman else 1 / 52632
+        elif self.ageYear < 14:
+            p = 1 / 125004 if self.is_woman else 1 / 99996
+        elif self.ageYear < 24:
+            p = 1 / 49584 if self.is_woman else 1 / 22896
+        elif self.ageYear < 34:
+            p = 1 / 29856 if self.is_woman else 1 / 14580
+        elif self.ageYear < 44:
+            p = 1 / 13272 if self.is_woman else 1 / 7956
+        elif self.ageYear < 54:
+            p = 1 / 5052 if self.is_woman else 1 / 3348
+        elif self.ageYear < 64:
+            p = 1 / 2136 if self.is_woman else 1 / 1344
+        elif self.ageYear < 74:
+            p = 1 / 780 if self.is_woman else 1 / 504
+        elif self.ageYear < 84:
+            p = 1 / 252 if self.is_woman else 1 / 180
+        else:
+            p = 1 / 84 if self.is_woman else 1 / 72
         if random.uniform(0, 1) < p:
             if self.is_woman:
                 WOMEN_COUNT -= 1
@@ -104,25 +120,27 @@ class Person:
         if self.is_woman:
             self.check_child()
         self.age += 1
+        self.ageYear = self.age / 12
         return False
 
     def want_couple(self):
         if self.single != 0:
             self.single -= 1
             return False
-        p = 0
-        if 12 <= self.age < 15:
+        if 12 <= self.ageYear < 15:
             p = 0.6
-        elif 15 <= self.age < 21:
+        elif 15 <= self.ageYear < 21:
             p = 0.65
-        elif 21 <= self.age < 35:
+        elif 21 <= self.ageYear < 35:
             p = 0.8
-        elif 35 <= self.age < 45:
+        elif 35 <= self.ageYear < 45:
             p = 0.6
-        elif 45 <= self.age < 60:
+        elif 45 <= self.ageYear < 60:
             p = 0.5
-        elif 60 <= self.age < 125:
+        elif 60 <= self.ageYear < 125:
             p = 0.2
+        else:
+            p = 0
         if random.uniform(0, 1) <= p:
             if self.is_woman:
                 for i in range(len(SINGLE_MEN_WONT)):
@@ -142,7 +160,7 @@ class Person:
         return False
 
     def make_couple(self, other_person):
-        diff = abs(self.age - other_person.age)
+        diff = abs(self.ageYear - other_person.ageYear)
         p = 0.15
         if diff < 5:
             p = 0.45
@@ -155,30 +173,28 @@ class Person:
         if random.uniform(0, 1) <= p:
             self.couple = other_person.couple = Couple(self, other_person) if self.is_woman \
                 else Couple(other_person, self)
-            COUPLES.append(self.couple)
+            NEW_COUPLES.append(self.couple)
             return True
         return False
 
     def check_couple(self):
         if self.couple is None:
             return
-        if not self.couple.broke():
+        ok, _ = self.couple.broke()
+        if not ok:
             self.couple.child()
 
     def want_child(self):
-        p = 0
         if self.son_count + 1 == 1:
-            p = 0.6
+            p = 0.9901
         elif self.son_count + 1 == 2:
-            p = 0.75
+            p = 0.4401
         elif self.son_count + 1 == 3:
-            p = 0.35
+            p = 0.0401
         elif self.son_count + 1 == 4:
-            p = 0.2
-        elif self.son_count + 1 == 5:
-            p = 0.1
+            p = 0.0011
         else:
-            p = 0.05
+            p = 0.0099
         return random.uniform(0, 1) < p
 
     def check_child(self):
@@ -202,33 +218,38 @@ class Person:
                 env.ob_pregnant[env.now] += 1
 
     def get_pregnant(self):
-        p = 0
-        if self.age < 12:
+        if self.ageYear < 12:
             p = 0
-        elif self.age < 15:
+        elif self.ageYear < 15:
             p = 0.2
-        elif self.age < 21:
-            p = 0.45
-        elif self.age < 35:
+        elif self.ageYear < 21:
+            p = 0.85
+        elif self.ageYear < 25:
+            p = 0.9
+        elif self.ageYear < 30:
             p = 0.8
-        elif self.age < 45:
-            p = 0.4
-        elif self.age < 60:
-            p = 0.2
-        elif self.age < 125:
+        elif self.ageYear < 35:
+            p = 0.75
+        elif self.ageYear < 40:
+            p = 0.55
+        elif self.ageYear < 45:
+            p = 0.38
+        elif self.ageYear < 60:
             p = 0.05
+        else:
+            return False
         return random.uniform(0, 1) < p
 
     def __single_time__(self):
-        if 12 <= self.age < 15:
+        if 12 <= self.ageYear < 15:
             self.single = int(random.expovariate(3))
-        elif 15 <= self.age < 35:
+        elif 15 <= self.ageYear < 35:
             self.single = int(random.expovariate(6))
-        elif 35 <= self.age < 45:
+        elif 35 <= self.ageYear < 45:
             self.single = int(random.expovariate(12))
-        elif 45 <= self.age < 60:
+        elif 45 <= self.ageYear < 60:
             self.single = int(random.expovariate(24))
-        elif 60 <= self.age < 125:
+        elif 60 <= self.ageYear < 125:
             self.single = int(random.expovariate(48))
 
     def __str__(self):
@@ -264,7 +285,7 @@ def initialize_population():
 
 
 def month(env, months):
-    global PERSONS, NEW_PERSONS
+    global PERSONS, NEW_PERSONS, COUPLES, NEW_COUPLES
 
     env.ob_persons = [None] * MONTHS
     env.ob_women = [None] * MONTHS
@@ -281,12 +302,14 @@ def month(env, months):
         env.ob_persons[env.now] = len(PERSONS)
         env.ob_women[env.now] = WOMEN_COUNT
         env.ob_men[env.now] = MEN_COUNT
+        env.ob_couples[env.now] = len(COUPLES)
         initialize_population()
         if len(PERSONS) == 0:
             break
-        env.ob_couples[env.now] = len(COUPLES)
         yield env.timeout(1)
         PERSONS = NEW_PERSONS
+        COUPLES = NEW_COUPLES
+        NEW_COUPLES = []
         NEW_PERSONS = []
 
 
