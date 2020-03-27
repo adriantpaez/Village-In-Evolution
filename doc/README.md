@@ -86,3 +86,25 @@ ser hombre o mujer.
 
 
 > Las probabilidades que no se encuentren aquí es debido a que se mantuvieron igual que en la orientación del proyecto.
+
+## Ejemplo
+
+A continuación un ejemplo de simulación con una población inicial de 1000 mujeres y 1000 hombres durante 100 años.
+
+Se ejecuta el siguiente comando:
+
+```
+python3 main.py 1200 1000 1000
+```
+
+Durante la ejecución se muestran gráficos en tiempo real para poder observar la evolución, y así no esperar hasta el 
+final de la simulación para poder interpretar los datos. La siguiente imagen es un ejemlpo de los gráficos en tiempo
+real:
+
+![](RealTime.png)
+
+Al finalizar la simulación se muestran dos gráficas, la primera de la evolución de la población y la segunda de la 
+cantidad de parejas y embarazos.
+
+![](Figure_1.png)
+![](Figure_2.png)
